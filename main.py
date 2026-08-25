@@ -69,10 +69,10 @@ class Live2DKioskPlugin(Star):
     # ================= LLM 工具（核心：让大模型控制屏幕） =================
     @llm_tool(name="live2d_emotion")
     async def live2d_emotion(self, event: AstrMessageEvent, emotion: str):
-        """控制屏幕上的 Live2D 模型表情。根据对话的情绪选择合适的表情（如对方开心用 happy，难过用 sad）。
+        """控制屏幕上的 Live2D 模型表情。在你（助手）开口回复之前调用：表情应反映你这句话想表达的情感——比如你开心地答应就用 happy，安慰对方就用 sad 或 shy，被逗笑就用 surprised，觉得对方无理取闹就用 angry。这是你表达自己情绪的方式，不是转述用户的情绪。
 
         Args:
-            emotion(string): 表情代号或情感词。情感词自动映射：happy→F01, angry→F03, think→F04, sad→F05, surprised→F06, shy→F07, pout→F08；也可直接填代号 F01~F08（Haru 模型）或 exp_01~exp_08（Mao 模型）。
+            emotion(string): 你这句话的情感。情感词自动映射：happy→F01（开心）, angry→F03（生气）, think→F04（思考）, sad→F05（难过）, surprised→F06（惊讶）, shy→F07（害羞）, pout→F08（不满）；也可直接填代号 F01~F08（Haru 模型）或 exp_01~exp_08（Mao 模型）。
         """
         emo = self._map_emotion(emotion)
         ok, err = await self._send({"type": "emotion", "value": emo})
@@ -80,20 +80,20 @@ class Live2DKioskPlugin(Star):
 
     @llm_tool(name="live2d_action")
     async def live2d_action(self, event: AstrMessageEvent, action: str):
-        """触发屏幕 Live2D 模型的动作（如打招呼、互动、待机动作）。当对方提到"挥手/拍一下/打招呼"或需要吸引注意时使用。
+        """触发屏幕 Live2D 模型的动作，配合你说话时的肢体语言（如开心时挥手、打招呼时招手、提到"拍一下"时轻拍身体）。在说话前或说话的同时调用。
 
         Args:
-            action(string): 动作代号。常用：tapbody_0（轻拍身体）、tap（点击互动）、idle（待机）、idle_1；也可以填组名加编号如 tapbody_1。
+            action(string): 动作代号。常用：tapbody_0（轻拍身体）、tap（点击互动）、idle（待机）、wave（挥手）；也可以填组名加编号如 tapbody_1。
         """
         ok, err = await self._send({"type": "action", "value": action})
         return f"已触发动作 {action}" if ok else f"触发动作失败：{err}"
 
     @llm_tool(name="live2d_speak")
     async def live2d_speak(self, event: AstrMessageEvent, text: str):
-        """在屏幕的对话气泡中显示一段话（相当于模型"说"出来）。回复重要内容或需要展示在屏幕上的文字时使用。
+        """把你要说的话显示在屏幕的对话气泡中（相当于模型"说"出来）。当你准备回复用户时调用，把完整回复内容显示到屏幕上，让对话在屏幕上可见。
 
         Args:
-            text(string): 要显示的文字内容（200 字以内）。
+            text(string): 你要显示的回复内容（200 字以内）。
         """
         ok, err = await self._send({"type": "speak", "text": text[:200]})
         return f"已在屏幕显示：{text[:80]}" if ok else f"显示失败：{err}"

@@ -1,58 +1,54 @@
 # astrbot-live2d-kiosk
 
-把 astrbot 接到我的 Live2D 小屏幕终端上（Orange Pi + Chromium kiosk + easy-live2d，上面架了块分光棱镜做伪全息效果）。
+astrbot 插件：通过 LLM function calling 控制 Live2D 桌面终端（Orange Pi Zero 2W + Chromium kiosk + easy-live2d，棱镜伪全息显示）。
 
-简单说：**群里聊天的时候，大模型会自己控制屏幕上的角色——该开心的时候笑，难过的时候哭，说话的时候气泡里会显示它说的话**。不用发任何指令，装好就完事。
+大模型在对话中会根据**自身回复的情感**自动调用工具，控制屏幕上的模型做表情、做动作、显示气泡——无需手动指令。
 
-## 装
+## 安装
 
 ```bash
-cd <astrbot安装目录>/data/plugins
+cd <astrbot>/data/plugins
 git clone https://github.com/mydosu/astrbot-live2d-kiosk.git
 ```
 
-然后 astrbot 的 WebUI 里启用插件就行。
+astrbot WebUI 启用插件即可。默认 `board_url` 为 USB 连接（`http://192.168.30.1:8080`）；WiFi/局域网环境改为板子管理后台地址（如 `http://192.168.5.32:8080`）。
 
-板子地址默认走 USB 连接（`http://192.168.30.1:8080`）。如果你板子是走 WiFi 的，在插件设置里把 `board_url` 改成局域网地址（比如 `http://192.168.5.32:8080`）。
+## 工作原理
 
-## 它是怎么工作的
+插件通过 HTTP 调用板子管理后台的 `/api/send` 接口（协议详见主仓库 `docs/Agent接口文档.md`）。注册了三个 LLM 工具：
 
-板子那边有个管理后台（Flask），插件就是往它的接口发消息。大模型那边注册了三个工具，它聊着聊着就会自己调用：
+| 工具 | 说明 |
+|---|---|
+| `live2d_emotion` | 切换模型表情。工具描述引导大模型按**自己这句话想表达的情绪**选择（开心→happy、安慰→sad/shy 等），而非转述用户情绪 |
+| `live2d_action` | 触发模型动作，配合回复时的肢体语言 |
+| `live2d_speak` | 将回复内容显示到屏幕气泡 |
 
-- **live2d_emotion** —— 切表情。大模型开口前会根据**自己这句话想表达的情绪**选一个（不是转述你的情绪，是它自己的——比如它开心地答应你，就切 happy）
-- **live2d_action** —— 做动作。配合说话时的肢体语言，比如打招呼挥个手
-- **live2d_speak** —— 把回复显示到屏幕气泡上，屏幕上能直接看到它说了啥
+情感词自动映射表情代号（happy→F01、sad→F05、angry→F03…），也可直接传代号 `F01`~`F08`（Haru）或 `exp_01`~`exp_08`（Mao）。
 
-表情词和代号都能用：`happy`、`sad`、`angry` 这种情感词会自动映射成表情代号（happy→F01、sad→F05……），直接填 `F01`~`F08` 也行。Mao 模型用 `exp_01`~`exp_08`。
-
-> 注意：Hiyori 模型没有表情（只有动作），建议屏幕端用 Haru 或 Mao。
+> 注意：Hiyori 无表情（仅动作），屏幕端建议使用 Haru / Mao。
 
 ## 手动指令
 
-不想让大模型管的时候，也可以手动控制：
-
-```
-/屏幕 表情 happy      切表情（情感词或代号）
-/屏幕 动作 tapbody_0  触发动作
-/屏幕 说 你好呀       屏幕气泡显示
-/屏幕 状态            看下屏幕现在的模型和信息源
-/屏幕 帮助            帮助
+```text
+/屏幕 表情 <词或代号>    切换表情
+/屏幕 动作 <代号>        触发动作（tapbody_0、tap、idle）
+/屏幕 说 <文本>          气泡显示
+/屏幕 状态               查询模型/信息源
 ```
 
-## 插件配置
+## 配置
 
-| 配置项 | 默认 | 说明 |
+| 字段 | 默认 | 说明 |
 |---|---|---|
-| board_url | `http://192.168.30.1:8080` | 板子管理后台地址 |
-| auto_emotion | `false` | 关键词自动切表情（有 LLM 工具后基本用不上，开着反而容易乱切） |
-| speak_user_msg | `true` | 收到的消息也转发到屏幕气泡（显示"你：xxx"） |
+| `board_url` | `http://192.168.30.1:8080` | 板子管理后台地址 |
+| `auto_emotion` | `false` | 关键词自动切表情（有 LLM 工具后通常不需要） |
+| `speak_user_msg` | `true` | 用户消息转发到屏幕气泡 |
 
-## 一点说明
+## 备注
 
-- 这个插件是**电脑端 astrbot 生态**的东西，和板子上 kiosk 本身的开发是分开的——板子只提供 HTTP/WebSocket 接口，协议见主仓库的 `docs/Agent接口文档.md`
-- 表情/动作能不能用看模型：Haru 8 个表情全的，Mao 也有 8 个，Hiyori 只有动作
-- Haru 加载比较慢（20~30 秒），刚切过去的时候屏幕会转一会儿圈，正常现象
-- 主要功能就是上面那些，指令是我开发时自己用的，写的比较糙，能用就行
+- 插件属于电脑端 astrbot 生态，与板端 kiosk 开发相互独立，板端仅提供 HTTP/WebSocket 接口
+- 模型能力差异：Haru / Mao 各 8 个表情；Haru 加载较慢（约 20~30s），切换后加载动画属正常
+- 依赖：astrbot >= 4.16（`@llm_tool` 注册）
 
 ## License
 

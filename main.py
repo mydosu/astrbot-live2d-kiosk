@@ -146,8 +146,11 @@ class Live2DKioskPlugin(Star):
             if text:
                 origin = self._touch_session(event)
                 await self._enqueue({"type": "speak", "text": text[:200]}, origin)
-        except Exception:
-            pass
+                print(f"[live2d-kiosk] llm_response -> {text[:30]}...", flush=True)
+            else:
+                print("[live2d-kiosk] llm_response 空文本（result_chain 为空）", flush=True)
+        except Exception as e:
+            print(f"[live2d-kiosk] llm_response 异常: {e}", flush=True)
 
     # ================= 手动指令 =================
     @event_message_type(EventMessageType.ALL)

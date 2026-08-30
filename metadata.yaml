@@ -7,4 +7,4 @@ author: mydosu
 repo: https://github.com/mydosu/astrbot-live2d-kiosk
 astrbot_version: ">=4.16"
 config:
-  speak_user_msg: true
+  speak_user_msg: false

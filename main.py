@@ -18,6 +18,7 @@ LLM 工具（大模型分析情绪自动调用）：
 手动指令（/屏幕 ...）与自动行为（speak_user_msg）同样写入队列。
 """
 from astrbot.api.all import *
+from astrbot.core.star.register import register_on_llm_response
 import asyncio
 
 # 情感词 → 表情代号（Haru F 系列；Mao 用 exp_01~exp_08）
@@ -40,7 +41,7 @@ class Live2DKioskPlugin(Star):
         self._queue: list[dict] = []
         self._lock = asyncio.Lock()
         self._sessions: dict[str, dict] = {}  # origin → {last_msg, last_ts}（活跃会话）
-        self.speak_user_msg = cfg.get("speak_user_msg", True)
+        self.speak_user_msg = cfg.get("speak_user_msg", False)  # 默认不转发用户消息（屏幕显示 astrbot 回复）
 
         # Web API（AstrBot 自动挂载到 /api/v1/plugins/extensions/ 下并鉴权 plugin scope）
         self.context.register_web_api(
@@ -129,6 +130,24 @@ class Live2DKioskPlugin(Star):
         origin = self._touch_session(event)
         await self._enqueue({"type": "speak", "text": text[:200]}, origin)
         return f"已在屏幕显示：{text[:80]}"
+
+    # ================= LLM 回复自动上屏 =================
+    @register_on_llm_response()
+    async def on_llm_response(self, event: AstrMessageEvent, response):
+        """LLM 回复后：把完整回复显示到屏幕气泡（不依赖 speak 工具，分段消息完整拼接）"""
+        try:
+            chain = getattr(response, "result_chain", None)
+            text = ""
+            if chain is not None:
+                text = getattr(chain, "message", "") or str(chain)
+            if not text:
+                text = getattr(response, "_completion_text", "") or ""
+            text = (text or "").strip()
+            if text:
+                origin = self._touch_session(event)
+                await self._enqueue({"type": "speak", "text": text[:200]}, origin)
+        except Exception:
+            pass
 
     # ================= 手动指令 =================
     @event_message_type(EventMessageType.ALL)

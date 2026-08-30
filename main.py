@@ -140,7 +140,16 @@ class Live2DKioskPlugin(Star):
             chain = getattr(response, "result_chain", None)
             text = ""
             if chain is not None:
-                text = getattr(chain, "message", "") or str(chain)
+                m = getattr(chain, "message", None)
+                if callable(m):  # MessageChain.message 可能是方法（不同版本）
+                    try:
+                        text = m()
+                    except TypeError:
+                        text = ""
+                else:
+                    text = m or ""
+                if not isinstance(text, str):
+                    text = str(text)
             if not text:
                 text = getattr(response, "_completion_text", "") or ""
             text = (text or "").strip()

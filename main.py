@@ -130,7 +130,7 @@ class Live2DKioskPlugin(Star):
         return f"已在屏幕显示：{text[:80]}"
 
     # ================= 手动指令 =================
-    @event.register(EventMessageType.ALL_MESSAGE)
+    @event_message_type(EventMessageType.ALL_MESSAGE)
     async def on_message(self, event: AstrMessageEvent):
         msg = (event.message_str or "").strip()
         if not msg:

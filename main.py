@@ -38,6 +38,7 @@ class Live2DKioskPlugin(Star):
         super().__init__(context)
         self._queue: list[dict] = []
         self._lock = asyncio.Lock()
+        self._sessions: dict[str, dict] = {}  # origin → {last_msg, last_ts}（活跃会话）
         self.speak_user_msg = config.get("speak_user_msg", True)
 
         # Web API（AstrBot 自动挂载到 /api/v1/plugins/extensions/ 下并鉴权 plugin scope）
@@ -46,6 +47,12 @@ class Live2DKioskPlugin(Star):
             self._pending,
             ["GET"],
             "拉取待显示消息（板子壳轮询，拉取后清空）",
+        )
+        self.context.register_web_api(
+            "live2d-kiosk/sessions",
+            self._sessions_api,
+            ["GET"],
+            "活跃会话列表（后台下拉切换显示会话用）",
         )
         self.context.register_web_api(
             "live2d-kiosk/ping",
@@ -65,9 +72,27 @@ class Live2DKioskPlugin(Star):
             self._queue = []
         return {"ok": True, "messages": msgs}
 
-    async def _enqueue(self, payload: dict):
+    async def _sessions_api(self):
+        """活跃会话列表：origin → 最后消息/时间"""
+        return {"ok": True, "sessions": self._sessions}
+
+    async def _enqueue(self, payload: dict, origin: str | None = None):
+        if origin:
+            payload["origin"] = origin
         async with self._lock:
             self._queue.append(payload)
+
+    def _touch_session(self, event: AstrMessageEvent):
+        """记录活跃会话（消息来源）"""
+        origin = getattr(event, "unified_msg_origin", None) or getattr(
+            getattr(event, "message_obj", None), "session_id", None
+        )
+        if origin:
+            self._sessions[origin] = {
+                "last_msg": (event.message_str or "")[:40],
+                "last_ts": __import__("time").time(),
+            }
+        return origin
 
     # ================= LLM 工具（写队列） =================
     @llm_tool(name="live2d_emotion")
@@ -78,7 +103,8 @@ class Live2DKioskPlugin(Star):
             emotion(string): 你这句话的情感。情感词自动映射：happy→F01（开心）, angry→F03（生气）, think→F04（思考）, sad→F05（难过）, surprised→F06（惊讶）, shy→F07（害羞）, pout→F08（不满）；也可直接填代号 F01~F08（Haru 模型）或 exp_01~exp_08（Mao 模型）。
         """
         emo = self._map_emotion(emotion)
-        await self._enqueue({"type": "emotion", "value": emo})
+        origin = self._touch_session(event)
+        await self._enqueue({"type": "emotion", "value": emo}, origin)
         return f"表情 {emo} 已发送到屏幕"
 
     @llm_tool(name="live2d_action")
@@ -88,7 +114,8 @@ class Live2DKioskPlugin(Star):
         Args:
             action(string): 动作代号。常用：tapbody_0（轻拍身体）、tap（点击互动）、idle（待机）、wave（挥手）；也可以填组名加编号如 tapbody_1。
         """
-        await self._enqueue({"type": "action", "value": action})
+        origin = self._touch_session(event)
+        await self._enqueue({"type": "action", "value": action}, origin)
         return f"动作 {action} 已发送到屏幕"
 
     @llm_tool(name="live2d_speak")
@@ -98,7 +125,8 @@ class Live2DKioskPlugin(Star):
         Args:
             text(string): 你要显示的回复内容（200 字以内）。
         """
-        await self._enqueue({"type": "speak", "text": text[:200]})
+        origin = self._touch_session(event)
+        await self._enqueue({"type": "speak", "text": text[:200]}, origin)
         return f"已在屏幕显示：{text[:80]}"
 
     # ================= 手动指令 =================
@@ -107,14 +135,15 @@ class Live2DKioskPlugin(Star):
         msg = (event.message_str or "").strip()
         if not msg:
             return
+        origin = self._touch_session(event)
         if msg.startswith(("/屏幕", "/screen", "/kiosk")):
-            yield event.result(await self._handle_cmd(msg))
+            yield event.result(await self._handle_cmd(msg, origin))
             return
-        # 普通消息：可选转发气泡（写队列，由板子壳显示）
+        # 普通消息：可选转发气泡（写队列，由板子壳显示；带会话来源）
         if self.speak_user_msg:
-            await self._enqueue({"type": "speak", "text": f"你：{msg[:80]}"})
+            await self._enqueue({"type": "speak", "text": f"你：{msg[:80]}"}, origin)
 
-    async def _handle_cmd(self, msg: str) -> str:
+    async def _handle_cmd(self, msg: str, origin: str | None = None) -> str:
         parts = msg.split(maxsplit=1)
         if len(parts) == 1:
             return self._help()
@@ -127,17 +156,17 @@ class Live2DKioskPlugin(Star):
             if not arg:
                 return "用法：/屏幕 表情 <代号或情感词>（如 happy、F01、exp_05）"
             emo = self._map_emotion(arg)
-            await self._enqueue({"type": "emotion", "value": emo})
+            await self._enqueue({"type": "emotion", "value": emo}, origin)
             return f"表情 {emo} 已发送到屏幕 ✅"
         if action in ("动作", "action"):
             if not arg:
                 return "用法：/屏幕 动作 <代号>（如 tapbody_0、tap、idle）"
-            await self._enqueue({"type": "action", "value": arg})
+            await self._enqueue({"type": "action", "value": arg}, origin)
             return "动作已发送到屏幕 ✅"
         if action in ("说", "speak", "say"):
             if not arg:
                 return "用法：/屏幕 说 <内容>"
-            await self._enqueue({"type": "speak", "text": arg[:200]})
+            await self._enqueue({"type": "speak", "text": arg[:200]}, origin)
             return "已发送到屏幕 ✅"
         if action in ("帮助", "help"):
             return self._help()

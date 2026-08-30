@@ -11,7 +11,7 @@ cd <astrbot>/data/plugins
 git clone https://github.com/mydosu/astrbot-live2d-kiosk.git
 ```
 
-astrbot WebUI 启用插件即可。默认 `board_url` 为 USB 连接（`http://192.168.30.1:8080`）；WiFi/局域网环境改为板子管理后台地址（如 `http://192.168.5.32:8080`）。
+astrbot WebUI 启用插件即可。默认 `board_url` 为 USB 连接（`http://192.168.137.2:8080`）；WiFi/局域网环境改为板子管理后台地址（如 `http://192.168.5.32:8080`）。
 
 ## 工作原理
 
@@ -40,7 +40,7 @@ astrbot WebUI 启用插件即可。默认 `board_url` 为 USB 连接（`http://1
 
 | 字段 | 默认 | 说明 |
 |---|---|---|
-| `board_url` | `http://192.168.30.1:8080` | 板子管理后台地址 |
+| `board_url` | `http://192.168.137.2:8080` | 板子管理后台地址 |
 | `auto_emotion` | `false` | 关键词自动切表情（有 LLM 工具后通常不需要） |
 | `speak_user_msg` | `true` | 用户消息转发到屏幕气泡 |
 

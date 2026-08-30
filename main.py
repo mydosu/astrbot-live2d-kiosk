@@ -46,10 +46,16 @@ class Live2DKioskPlugin(Star):
 
         # Web API（AstrBot 自动挂载到 /api/v1/plugins/extensions/ 下并鉴权 plugin scope）
         self.context.register_web_api(
-            "live2d-kiosk/pending",
-            self._pending,
+            "live2d-kiosk/ping",
+            self._ping,
             ["GET"],
-            "拉取待显示消息（板子壳轮询，拉取后清空）",
+            "插件探活",
+        )
+        self.context.register_web_api(
+            "live2d-kiosk/clear",
+            self._clear,
+            ["POST", "GET"],
+            "清空待显示消息队列（后台「清空消息」按钮调用）",
         )
         self.context.register_web_api(
             "live2d-kiosk/sessions",
@@ -67,6 +73,14 @@ class Live2DKioskPlugin(Star):
     # ================= Web API =================
     async def _ping(self):
         return {"status": "ok", "plugin": "live2d-kiosk"}
+
+    async def _clear(self):
+        """清空待显示消息队列（后台「清空消息」按钮调用）"""
+        async with self._lock:
+            n = len(self._queue)
+            self._queue = []
+        logger.info(f"[live2d-kiosk] 队列已清空 {n} 条")
+        return {"ok": True, "cleared": n}
 
     async def _pending(self):
         """板子壳轮询：返回队列并清空"""

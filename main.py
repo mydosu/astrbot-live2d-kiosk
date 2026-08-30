@@ -152,13 +152,27 @@ class Live2DKioskPlugin(Star):
                     text = str(text)
             if not text:
                 text = getattr(response, "_completion_text", "") or ""
+            if not text:
+                # raw_completion 兜底（OpenAI 格式 choices[0].message.content / reasoning_content）
+                raw = getattr(response, "raw_completion", None)
+                if raw is not None:
+                    try:
+                        choices = getattr(raw, "choices", None) or []
+                        if choices:
+                            msg = getattr(choices[0], "message", None)
+                            if msg is not None:
+                                text = getattr(msg, "content", "") or getattr(msg, "reasoning_content", "") or ""
+                                if not isinstance(text, str):
+                                    text = str(text)
+                    except Exception as e:
+                        logger.warning(f"[live2d-kiosk] raw_completion 提取失败: {e}")
             text = (text or "").strip()
             if text:
                 origin = self._touch_session(event)
                 await self._enqueue({"type": "speak", "text": text[:200]}, origin)
                 logger.info(f"[live2d-kiosk] llm_response -> {text[:30]}...")
             else:
-                logger.warning("[live2d-kiosk] llm_response 空文本（result_chain 为空）")
+                logger.warning(f"[live2d-kiosk] llm_response 空文本（result_chain 为空）; response 字段: {[k for k in dir(response) if not k.startswith('_')]}; result_chain={chain!r}; raw={getattr(response, 'raw_completion', None)!r}")
         except Exception as e:
             logger.error(f"[live2d-kiosk] llm_response 异常: {e}")
 

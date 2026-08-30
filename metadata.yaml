@@ -1,5 +1,5 @@
 # metadata.yaml
-name: live2d-kiosk
+name: live2d_kiosk
 desc: 控制 Live2D 桌面终端（伪全息小屏幕）：表情 / 动作 / 对话气泡（LLM 工具调用 + 队列模式）
 short_desc: 大模型分析情绪自动控制 Live2D 小屏幕（板子壳轮询拉取）
 version: 2.0.0

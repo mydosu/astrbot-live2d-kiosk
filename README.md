@@ -9,6 +9,7 @@ astrbot 插件：通过 LLM function calling 控制 Live2D 桌面终端（Orange
 ```bash
 cd <astrbot>/data/plugins
 git clone https://github.com/mydosu/astrbot-live2d-kiosk.git
+mv astrbot-live2d-kiosk live2d_kiosk   # 目录名必须是合法 Python 标识符（不能有连字符）
 ```
 
 astrbot WebUI 启用插件即可。默认 `board_url` 为 USB 连接（`http://192.168.137.2:8080`）；WiFi/局域网环境改为板子管理后台地址（如 `http://192.168.5.32:8080`）。

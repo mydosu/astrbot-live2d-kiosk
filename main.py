@@ -32,7 +32,7 @@ EMOTION_MAP = {
 }
 
 
-@register("live2d-kiosk", "mydosu", "控制 Live2D 桌面终端（队列模式：板子壳轮询拉取）", "2.0.0")
+@register("live2d_kiosk", "mydosu", "控制 Live2D 桌面终端（队列模式：板子壳轮询拉取）", "2.0.0")
 class Live2DKioskPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)

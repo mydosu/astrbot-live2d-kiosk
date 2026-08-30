@@ -19,6 +19,7 @@ LLM 工具（大模型分析情绪自动调用）：
 """
 from astrbot.api.all import *
 from astrbot.core.star.register import register_on_llm_response
+from astrbot import logger
 import asyncio
 
 # 情感词 → 表情代号（Haru F 系列；Mao 用 exp_01~exp_08）
@@ -146,11 +147,11 @@ class Live2DKioskPlugin(Star):
             if text:
                 origin = self._touch_session(event)
                 await self._enqueue({"type": "speak", "text": text[:200]}, origin)
-                print(f"[live2d-kiosk] llm_response -> {text[:30]}...", flush=True)
+                logger.info(f"[live2d-kiosk] llm_response -> {text[:30]}...")
             else:
-                print("[live2d-kiosk] llm_response 空文本（result_chain 为空）", flush=True)
+                logger.warning("[live2d-kiosk] llm_response 空文本（result_chain 为空）")
         except Exception as e:
-            print(f"[live2d-kiosk] llm_response 异常: {e}", flush=True)
+            logger.error(f"[live2d-kiosk] llm_response 异常: {e}")
 
     # ================= 手动指令 =================
     @event_message_type(EventMessageType.ALL)

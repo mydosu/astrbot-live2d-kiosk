@@ -34,12 +34,13 @@ EMOTION_MAP = {
 
 @register("live2d_kiosk", "mydosu", "控制 Live2D 桌面终端（队列模式：板子壳轮询拉取）", "2.0.0")
 class Live2DKioskPlugin(Star):
-    def __init__(self, context: Context, config: AstrBotConfig):
+    def __init__(self, context: Context, config: AstrBotConfig = None):
         super().__init__(context)
+        cfg = config or {}  # AstrBot 可能不传 config（参考官方约定：可选）
         self._queue: list[dict] = []
         self._lock = asyncio.Lock()
         self._sessions: dict[str, dict] = {}  # origin → {last_msg, last_ts}（活跃会话）
-        self.speak_user_msg = config.get("speak_user_msg", True)
+        self.speak_user_msg = cfg.get("speak_user_msg", True)
 
         # Web API（AstrBot 自动挂载到 /api/v1/plugins/extensions/ 下并鉴权 plugin scope）
         self.context.register_web_api(
